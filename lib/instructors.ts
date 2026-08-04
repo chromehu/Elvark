@@ -1,0 +1,88 @@
+import type { Instructor } from '@/types';
+
+export const instructors: Instructor[] = [
+  {
+    id: 'i1',
+    name: 'Kovács Anna',
+    title: 'Pénzügyi tanácsadó és Excel szakértő',
+    bio: 'Több mint 10 éves tapasztalattal rendelkező pénzügyi tanácsadó. Az elmúlt években több száz hallgatót tanított meg az Excel magabiztos használatára.',
+    rating: 4.9,
+    reviewCount: 312,
+    studentCount: 1840,
+    courseCount: 5,
+  },
+  {
+    id: 'i2',
+    name: 'Nagy Péter',
+    title: 'Webfejlesztő és oktató',
+    bio: 'Full-stack fejlesztő 12 év tapasztalattal. Szenvedélye a tudásmegosztás és a kezdők támogatása a programozás világában.',
+    rating: 4.8,
+    reviewCount: 256,
+    studentCount: 1320,
+    courseCount: 4,
+  },
+  {
+    id: 'i3',
+    name: 'Szabó Dóra',
+    title: 'Digital marketing szakértő',
+    bio: 'Kreatív marketing szakértő, aki kisvállalkozóknak segít hatékony online jelenlétet építeni. Több száz sikeres kampány mögött.',
+    rating: 4.7,
+    reviewCount: 198,
+    studentCount: 980,
+    courseCount: 3,
+  },
+  {
+    id: 'i4',
+    name: 'Tóth Márton',
+    title: 'Angoltanár és nyelvi coach',
+    bio: 'Akkreditált angoltanár, szakosodott állásinterjú-felkészítésre és társalgási készségek fejlesztésére. 8 év tanítási tapasztalat.',
+    rating: 4.9,
+    reviewCount: 174,
+    studentCount: 760,
+    courseCount: 3,
+  },
+  {
+    id: 'i5',
+    name: 'Varga Eszter',
+    title: 'Mezőgazdasági mérnök',
+    bio: 'Precíziós mezőgazdasági szakértő, modern technológiák és fenntartható gazdálkodás oktatója. Gyakorlati megközelítés.',
+    rating: 4.8,
+    reviewCount: 142,
+    studentCount: 540,
+    courseCount: 2,
+  },
+  {
+    id: 'i6',
+    name: 'Kiss Gábor',
+    title: 'Matematika tanár',
+    bio: '20 év tapasztalattal rendelkező matematika tanár. Érettségi felkészítés és egyetemi felvételi specialista.',
+    rating: 4.9,
+    reviewCount: 287,
+    studentCount: 1620,
+    courseCount: 4,
+  },
+  {
+    id: 'i7',
+    name: 'Horváth Réka',
+    title: 'Grafikus tervező',
+    bio: 'Brand és social media design szakértő. Canva és Adobe Creative Suite oktató, kreatív workshopok vezetője.',
+    rating: 4.7,
+    reviewCount: 156,
+    studentCount: 890,
+    courseCount: 3,
+  },
+  {
+    id: 'i8',
+    name: 'Varga Tamás',
+    title: 'Vállalkozási tanácsadó',
+    bio: 'Sikeres vállalkozó és mentor. Több mint 500 startupot segített elindítani az elmúlt 15 évben.',
+    rating: 4.8,
+    reviewCount: 203,
+    studentCount: 1150,
+    courseCount: 4,
+  },
+];
+
+export function getInstructor(id: string): Instructor | undefined {
+  return instructors.find((i) => i.id === id);
+}
