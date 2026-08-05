@@ -8,6 +8,7 @@ import { PageContainer } from '@/components/shared/PageContainer';
 import { Logo } from '@/components/shared/Logo';
 import { useToast } from '@/components/providers/ToastProvider';
 import { createClient } from '@/lib/supabase/client';
+import { validateSafeRedirect } from '@/lib/redirect';
 
 function mapAuthError(message: string): string {
   if (message.includes('Invalid login credentials')) {
@@ -65,8 +66,9 @@ export default function LoginPage() {
     }
 
     showToast('Sikeres bejelentkezés.', 'success');
-    const redirect = searchParams.get('redirect') || '/fiokom';
-    router.push(redirect);
+    const rawRedirect = searchParams.get('redirect');
+    const safeRedirect = validateSafeRedirect(rawRedirect || '/fiokom');
+    router.push(safeRedirect);
   };
 
   return (
@@ -127,7 +129,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-cobalt-600 text-white font-medium hover:bg-cobalt-700 transition-colors shadow-soft disabled:opacity-60 min-h-[44px]"
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-cobalt-600 text-white font-medium hover:bg-cobalt-700 transition-colors shadow-soft disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Bejelentkezés...</>

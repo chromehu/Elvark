@@ -34,10 +34,14 @@ interface FormErrors {
   bio?: string;
   experience?: string;
   topics?: string;
+  website?: string;
+  linkedin?: string;
   motivation?: string;
   contentOwnership?: string;
   termsAccepted?: string;
 }
+
+const URL_REGEX = /^(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&/=]*)$/;
 
 export default function InstructorApplicationPage() {
   const router = useRouter();
@@ -108,6 +112,14 @@ export default function InstructorApplicationPage() {
     if (!experience.trim()) e.experience = 'A szakmai tapasztalat megadása kötelező.';
     if (!topics.trim()) e.topics = 'Az oktatási témakörök megadása kötelező.';
     if (!motivation.trim()) e.motivation = 'A motiváció megadása kötelező.';
+    
+    if (website.trim() && !URL_REGEX.test(website.trim())) {
+      e.website = 'Érvénytelen weboldal URL.';
+    }
+    if (linkedin.trim() && !URL_REGEX.test(linkedin.trim())) {
+      e.linkedin = 'Érvénytelen social média URL.';
+    }
+    
     if (!contentOwnership) e.contentOwnership = 'A tartalomtulajdonos nyilatkozat elfogadása kötelező.';
     if (!termsAccepted) e.termsAccepted = 'A feltételek elfogadása kötelező.';
     setErrors(e);
@@ -130,31 +142,27 @@ export default function InstructorApplicationPage() {
       website_url: website.trim() || null,
       social_url: linkedin.trim() || null,
       application_message: motivation.trim(),
-      approval_status: 'pending' as const,
-      applied_at: new Date().toISOString(),
     };
 
     let error;
-    if (existingApp) {
-      // Update existing application (resubmit after rejection)
-      ({ error } = await supabase
-        .from('instructor_profiles')
-        .update({
-          ...payload,
-          rejection_reason: null,
-        })
-        .eq('user_id', user.id));
-    } else {
-      // Create new application
-      ({ error } = await supabase
-        .from('instructor_profiles')
-        .insert(payload));
+    if (existingApp?.approval_status === 'rejected') {
+      // Use protected RPC to resubmit rejected application
+      ({ error } = await supabase.rpc('resubmit_instructor_application', {
+        p_user_id: user.id,
+        ...payload,
+      }));
+    } else if (!existingApp) {
+      // Use protected RPC to submit new application
+      ({ error } = await supabase.rpc('submit_instructor_application', {
+        p_user_id: user.id,
+        ...payload,
+      }));
     }
 
     setSubmitting(false);
 
     if (error) {
-      if (error.code === '23505') {
+      if (error.message?.includes('already pending') || error.message?.includes('existing')) {
         showToast('Már van folyamatban lévő oktatói jelentkezésed.', 'warning');
       } else {
         showToast('A jelentkezés beküldése sikertelen. Kérjük, próbáld újra.', 'warning');
@@ -177,11 +185,6 @@ export default function InstructorApplicationPage() {
     if (updated) {
       setExistingApp(updated as InstructorProfile);
     }
-  };
-
-  const handleResubmit = () => {
-    // Allow editing the form again
-    setExistingApp(null);
   };
 
   if (authLoading || loading) {
@@ -296,7 +299,7 @@ export default function InstructorApplicationPage() {
               <label htmlFor="app-fullname" className="text-sm font-medium text-navy-700 mb-1.5 block">Teljes név</label>
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input id="app-fullname" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Kovács Anna" aria-invalid={!!errors.fullName} className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cobalt-400 focus:border-transparent transition-all" />
+                <input id="app-fullname" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Kovács Anna" aria-invalid={!!errors.fullName} maxLength={100} className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cobalt-400 focus:border-transparent transition-all" />
               </div>
               {errors.fullName && <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.fullName}</p>}
             </div>
@@ -306,7 +309,7 @@ export default function InstructorApplicationPage() {
             <label htmlFor="app-instname" className="text-sm font-medium text-navy-700 mb-1.5 block">Nyilvános oktatói név</label>
             <div className="relative">
               <GraduationCap className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input id="app-instname" type="text" value={instructorName} onChange={(e) => setInstructorName(e.target.value)} placeholder="Kovács Anna oktató" aria-invalid={!!errors.instructorName} className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cobalt-400 focus:border-transparent transition-all" />
+              <input id="app-instname" type="text" value={instructorName} onChange={(e) => setInstructorName(e.target.value)} placeholder="Kovács Anna oktató" aria-invalid={!!errors.instructorName} maxLength={100} className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cobalt-400 focus:border-transparent transition-all" />
             </div>
             {errors.instructorName && <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.instructorName}</p>}
           </div>
@@ -315,26 +318,26 @@ export default function InstructorApplicationPage() {
             <label htmlFor="app-profession" className="text-sm font-medium text-navy-700 mb-1.5 block">Szakmai megnevezés</label>
             <div className="relative">
               <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input id="app-profession" type="text" value={profession} onChange={(e) => setProfession(e.target.value)} placeholder="pl. Pénzügyi tanácsadó és Excel szakértő" aria-invalid={!!errors.profession} className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cobalt-400 focus:border-transparent transition-all" />
+              <input id="app-profession" type="text" value={profession} onChange={(e) => setProfession(e.target.value)} placeholder="pl. Pénzügyi tanácsadó és Excel szakértő" aria-invalid={!!errors.profession} maxLength={150} className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cobalt-400 focus:border-transparent transition-all" />
             </div>
             {errors.profession && <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.profession}</p>}
           </div>
 
           <div>
             <label htmlFor="app-bio" className="text-sm font-medium text-navy-700 mb-1.5 block">Rövid bemutatkozás</label>
-            <textarea id="app-bio" value={bio} onChange={(e) => setBio(e.target.value)} rows={3} placeholder="Írj egy rövid bemutatkozást magadról..." aria-invalid={!!errors.bio} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cobalt-400 focus:border-transparent transition-all resize-none" />
+            <textarea id="app-bio" value={bio} onChange={(e) => setBio(e.target.value)} rows={3} placeholder="Írj egy rövid bemutatkozást magadról..." aria-invalid={!!errors.bio} maxLength={500} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cobalt-400 focus:border-transparent transition-all resize-none" />
             {errors.bio && <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.bio}</p>}
           </div>
 
           <div>
             <label htmlFor="app-exp" className="text-sm font-medium text-navy-700 mb-1.5 block">Szakmai tapasztalat</label>
-            <textarea id="app-exp" value={experience} onChange={(e) => setExperience(e.target.value)} rows={4} placeholder="Főbb szakmai tapasztalatok, korábbi munkahelyek, projektek..." aria-invalid={!!errors.experience} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cobalt-400 focus:border-transparent transition-all resize-none" />
+            <textarea id="app-exp" value={experience} onChange={(e) => setExperience(e.target.value)} rows={4} placeholder="Főbb szakmai tapasztalatok, korábbi munkahelyek, projektek..." aria-invalid={!!errors.experience} maxLength={1000} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cobalt-400 focus:border-transparent transition-all resize-none" />
             {errors.experience && <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.experience}</p>}
           </div>
 
           <div>
             <label htmlFor="app-topics" className="text-sm font-medium text-navy-700 mb-1.5 block">Oktatási témakörök</label>
-            <input id="app-topics" type="text" value={topics} onChange={(e) => setTopics(e.target.value)} placeholder="pl. Excel, pénzügyi tervezés, adatelemzés" aria-invalid={!!errors.topics} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cobalt-400 focus:border-transparent transition-all" />
+            <input id="app-topics" type="text" value={topics} onChange={(e) => setTopics(e.target.value)} placeholder="pl. Excel, pénzügyi tervezés, adatelemzés" aria-invalid={!!errors.topics} maxLength={300} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cobalt-400 focus:border-transparent transition-all" />
             {errors.topics && <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.topics}</p>}
           </div>
 
@@ -343,20 +346,22 @@ export default function InstructorApplicationPage() {
               <label htmlFor="app-web" className="text-sm font-medium text-navy-700 mb-1.5 block">Weboldal (opcionális)</label>
               <div className="relative">
                 <Globe className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input id="app-web" type="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://pelda.hu" className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cobalt-400 focus:border-transparent transition-all" />
+                <input id="app-web" type="url" value={website} onChange={(e) => setWebsite(e.target.value)} placeholder="https://pelda.hu" aria-invalid={!!errors.website} maxLength={255} className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cobalt-400 focus:border-transparent transition-all" />
               </div>
+              {errors.website && <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.website}</p>}
             </div>
             <div>
               <label htmlFor="app-linkedin" className="text-sm font-medium text-navy-700 mb-1.5 block">LinkedIn / social (opcionális)</label>
               <div className="relative">
-                <input id="app-linkedin" type="text" value={linkedin} onChange={(e) => setLinkedin(e.target.value)} placeholder="linkedin.com/in/pelda" className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cobalt-400 focus:border-transparent transition-all" />
+                <input id="app-linkedin" type="text" value={linkedin} onChange={(e) => setLinkedin(e.target.value)} placeholder="linkedin.com/in/pelda" aria-invalid={!!errors.linkedin} maxLength={255} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cobalt-400 focus:border-transparent transition-all" />
               </div>
+              {errors.linkedin && <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.linkedin}</p>}
             </div>
           </div>
 
           <div>
             <label htmlFor="app-motivation" className="text-sm font-medium text-navy-700 mb-1.5 block">Miért szeretnél oktatni az ELVARK-on?</label>
-            <textarea id="app-motivation" value={motivation} onChange={(e) => setMotivation(e.target.value)} rows={3} placeholder="Mi a motivációd az oktatásban?" aria-invalid={!!errors.motivation} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cobalt-400 focus:border-transparent transition-all resize-none" />
+            <textarea id="app-motivation" value={motivation} onChange={(e) => setMotivation(e.target.value)} rows={3} placeholder="Mi a motivációd az oktatásban?" aria-invalid={!!errors.motivation} maxLength={500} className="w-full px-4 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-cobalt-400 focus:border-transparent transition-all resize-none" />
             {errors.motivation && <p className="text-xs text-red-600 mt-1 flex items-center gap-1"><AlertCircle className="w-3 h-3" />{errors.motivation}</p>}
           </div>
 
@@ -377,7 +382,7 @@ export default function InstructorApplicationPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-cobalt-600 text-white font-medium hover:bg-cobalt-700 transition-colors shadow-soft disabled:opacity-60 min-h-[44px]"
+            className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-cobalt-600 text-white font-medium hover:bg-cobalt-700 transition-colors shadow-soft disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {submitting ? (
               <><Loader2 className="w-4 h-4 animate-spin" /> Jelentkezés beküldése...</>
