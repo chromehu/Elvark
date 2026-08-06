@@ -6,7 +6,12 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "clean:test": "node -e \"require('fs').rmSync('.test-dist',{recursive:true,force:true})\"",
+    "test:compile": "npm run clean:test && tsc -p tsconfig.test.json",
+    "test": "npm run test:compile && node --test .test-dist/lib/__tests__/url-validation.test.js",
+    "test:watch": "npm run test:compile && node --test --watch .test-dist/lib/__tests__/url-validation.test.js",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@netlify/plugin-nextjs": "^5.15.13",
